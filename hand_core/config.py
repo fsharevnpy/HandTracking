@@ -19,7 +19,7 @@ def parse_args():
     ap.add_argument("--dev", type=int, default=0, help="Camera index (0,1,2,...)")
     ap.add_argument("--width", type=int, default=640)
     ap.add_argument("--height", type=int, default=480)
-    ap.add_argument("--input-scale", type=int, default=1)
+    ap.add_argument("--input-scale", type=float, default=2.5)
 
     ap.add_argument("--fps", type=int, default=30)
 
@@ -27,7 +27,7 @@ def parse_args():
 
     ap.add_argument("--screen-w", type=int, default=sw)
     ap.add_argument("--screen-h", type=int, default=sh)
-    ap.add_argument("--screen-scale", type=int, default=1)
+    ap.add_argument("--screen-scale", type=float, default=0.8)
 
     ap.add_argument("--send-host", default="127.0.0.1")
     ap.add_argument("--send-port", type=int, default=5005)
@@ -49,8 +49,8 @@ def parse_args():
     ap.add_argument("--draw", action="store_true")
 
     # Tap click (tip speed relative to palm)
-    ap.add_argument("--tap-speed", type=float, default=18.0, help="tip speed threshold (px/frame)")
-    ap.add_argument("--tap-release", type=float, default=10.0, help="speed to release tap arm")
+    ap.add_argument("--tap-speed", type=float, default=14.0, help="tip speed threshold (px/frame)")
+    ap.add_argument("--tap-release", type=float, default=12.0, help="speed to release tap arm")
     ap.add_argument("--palm-speed", type=float, default=6.0, help="max palm speed to allow tap")
     ap.add_argument("--tap-window-ms", type=int, default=200, help="max ms between arm and release")
     ap.add_argument("--tap-cooldown-ms", type=int, default=20, help="cooldown after click")
