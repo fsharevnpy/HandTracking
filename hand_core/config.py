@@ -17,14 +17,17 @@ def parse_args():
     ap = argparse.ArgumentParser()
 
     ap.add_argument("--dev", type=int, default=0, help="Camera index (0,1,2,...)")
-    ap.add_argument("--width", type=int, default=640/2)
-    ap.add_argument("--height", type=int, default=480/2)
+    ap.add_argument("--width", type=int, default=640)
+    ap.add_argument("--height", type=int, default=480)
+    ap.add_argument("--input-scale", type=int, default=1)
+
     ap.add_argument("--fps", type=int, default=30)
 
     ap.add_argument("--mirror", action="store_true")
 
     ap.add_argument("--screen-w", type=int, default=sw)
     ap.add_argument("--screen-h", type=int, default=sh)
+    ap.add_argument("--screen-scale", type=int, default=1)
 
     ap.add_argument("--send-host", default="127.0.0.1")
     ap.add_argument("--send-port", type=int, default=5005)

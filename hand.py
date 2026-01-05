@@ -11,6 +11,13 @@ os.system("cls")
 def main():
     args = config.parse_args()
 
+    input_scale = args.input_scale if args.input_scale > 0 else 1
+    screen_scale = args.screen_scale if args.screen_scale > 0 else 1
+    args.width = max(1, int(args.width / input_scale))
+    args.height = max(1, int(args.height / input_scale))
+    args.screen_w = max(1, int(args.screen_w / screen_scale))
+    args.screen_h = max(1, int(args.screen_h / screen_scale))
+
     cap = capture.open_cap(args.dev, args.width, args.height, args.fps)
     if cap is None:
         sys.exit(f"Can not open camera index {args.dev}")
