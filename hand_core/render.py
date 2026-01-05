@@ -19,7 +19,7 @@ def draw_debug(frame, hand_lms, cam_w, cam_h, debug, tap_click):
     )
     cv2.putText(
         frame,
-        f"Left ({sx},{sy}) tap={int(tap_click)}",
+        f"Left ({sx},{sy}) tap={int(tap_click)} grab={int(debug['grab'])} scroll={debug['scroll']}",
         (10, 30),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.7,

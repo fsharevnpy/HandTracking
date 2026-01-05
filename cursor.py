@@ -9,6 +9,7 @@ user32 = ctypes.windll.user32
 
 MOUSEEVENTF_LEFTDOWN = 0x0002
 MOUSEEVENTF_LEFTUP   = 0x0004
+MOUSEEVENTF_WHEEL    = 0x0800
 
 def set_cursor(x: int, y: int):
     user32.SetCursorPos(int(x), int(y))
@@ -21,6 +22,10 @@ def double_click():
     left_click()
     time.sleep(0.02)
     left_click()
+
+def scroll_wheel(delta: int):
+    if delta != 0:
+        user32.mouse_event(MOUSEEVENTF_WHEEL, 0, 0, int(delta), 0)
 
 def clamp(v, lo, hi):
     return lo if v < lo else hi if v > hi else v
@@ -37,7 +42,7 @@ if __name__ == "__main__":
     w, h = get_screen_size()
     print(f"Listening UDP on {HOST}:{PORT}")
     print(f"Screen: {w}x{h}")
-    print("Expected message: 'x,y,p' (e.g. 960,820,1). Ctrl+C to stop.")
+    print("Expected message: 'x,y,p[,s]' (e.g. 960,820,1,120). Ctrl+C to stop.")
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((HOST, PORT))
@@ -63,11 +68,14 @@ if __name__ == "__main__":
             if not s:
                 continue
 
+            parts = [t.strip() for t in s.split(",")]
+            if len(parts) < 3:
+                continue
             try:
-                xs, ys, ps = (t.strip() for t in s.split(",", 2))
-                x = int(float(xs))
-                y = int(float(ys))
-                p = int(float(ps))  # 0/1
+                x = int(float(parts[0]))
+                y = int(float(parts[1]))
+                p = int(float(parts[2]))  # 0/1
+                scroll = int(float(parts[3])) if len(parts) > 3 else 0
             except ValueError:
                 continue
 
@@ -77,6 +85,7 @@ if __name__ == "__main__":
             cur_x = int(cur_x + alpha * (x - cur_x))
             cur_y = int(cur_y + alpha * (y - cur_y))
             set_cursor(cur_x, cur_y)
+            scroll_wheel(scroll)
 
             now = time.monotonic()
             if p == 1 and prev_p == 0:

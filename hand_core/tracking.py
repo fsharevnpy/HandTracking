@@ -11,6 +11,8 @@ class TrackerState:
         self.speed_hist = deque(maxlen=60)
         self.tap_armed_ts = None
         self.tap_cooldown_until = 0
+        self.grab_active = False
+        self.grab_last_palm_y = None
 
 
 def clamp(v, lo, hi):
@@ -41,7 +43,9 @@ def process_hand(hand_lms, args, cam_w, cam_h, mirror, screen_w, screen_h, state
 
     target_px = (int(state.ema_x), int(state.ema_y))
 
+    #####TAP LOGIC#####
     tap_click = False
+    scroll_delta = 0
 
     wrist = hand_lms[0]
     index_mcp = hand_lms[5]
@@ -81,6 +85,38 @@ def process_hand(hand_lms, args, cam_w, cam_h, mirror, screen_w, screen_h, state
             elif ts_ms - state.tap_armed_ts > args.tap_window_ms:
                 state.tap_armed_ts = None
 
+    #####GRAB / SCROLL LOGIC#####
+    mid_scale = ((middle_mcp.x - wrist.x) ** 2 + (middle_mcp.y - wrist.y) ** 2) ** 0.5
+    scale = mid_scale if mid_scale > 1e-6 else 1e-6
+    index_tip = hand_lms[8]
+    other_tips = [hand_lms[12], hand_lms[16], hand_lms[20]]
+    curled_other = 0
+    for tip_lm in other_tips:
+        dist = ((tip_lm.x - palm_x) ** 2 + (tip_lm.y - palm_y) ** 2) ** 0.5
+        if dist <= scale * args.grab_ratio:
+            curled_other += 1
+
+    index_dist = ((index_tip.x - palm_x) ** 2 + (index_tip.y - palm_y) ** 2) ** 0.5
+    index_curled = index_dist <= scale * args.grab_index_ratio
+
+    all_curled = index_curled and curled_other == 3
+
+    if not state.grab_active and all_curled:
+        state.grab_active = True
+        state.grab_last_palm_y = palm_px[1]
+    elif state.grab_active and not all_curled:
+        state.grab_active = False
+        state.grab_last_palm_y = None
+
+    if state.grab_active:
+        if state.grab_last_palm_y is None:
+            state.grab_last_palm_y = palm_px[1]
+        dy = palm_px[1] - state.grab_last_palm_y
+        if abs(dy) >= args.scroll_deadzone:
+            scroll_delta = int(-dy * args.scroll_gain)
+            scroll_delta = clamp(scroll_delta, -args.scroll_max, args.scroll_max)
+        state.grab_last_palm_y = palm_px[1]
+
     state.prev_rel_px = rel_px
     state.prev_palm_px = palm_px
 
@@ -91,5 +127,7 @@ def process_hand(hand_lms, args, cam_w, cam_h, mirror, screen_w, screen_h, state
         "sy": sy,
         "tip": tip,
         "pip": pip,
+        "grab": state.grab_active,
+        "scroll": scroll_delta,
     }
-    return target_px, tap_click, debug
+    return target_px, tap_click, scroll_delta, debug

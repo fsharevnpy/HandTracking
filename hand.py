@@ -49,11 +49,11 @@ def main():
 
             target_px = None
             tap_click = False
+            scroll_delta = 0
             debug = None
 
             if result and result.hand_landmarks:
                 for i, hand_lms in enumerate(result.hand_landmarks):
-                    # handedness: list[list[Category]]
                     hand_label = None
                     if result.handedness and i < len(result.handedness) and result.handedness[i]:
                         cat0 = result.handedness[i][0]
@@ -62,7 +62,7 @@ def main():
                     if hand_label != "Right":
                         continue
 
-                    target_px, tap_click, debug = tracking.process_hand(
+                    target_px, tap_click, scroll_delta, debug = tracking.process_hand(
                         hand_lms,
                         args,
                         cam_w,
@@ -80,7 +80,7 @@ def main():
                     break  # only 1 left hand
 
             if target_px is not None:
-                net.send_cursor(sock, args.send_host, args.send_port, target_px, tap_click)
+                net.send_cursor(sock, args.send_host, args.send_port, target_px, tap_click, scroll_delta)
 
             show = cv2.flip(frame, 1) if args.mirror else frame
             cv2.imshow("Hands -> Mouse (Tasks) (press q)", show)
