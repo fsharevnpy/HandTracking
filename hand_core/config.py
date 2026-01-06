@@ -48,6 +48,15 @@ def parse_args():
     ap.add_argument("--ema-alpha", type=float, default=0.2)
     ap.add_argument("--draw", action="store_true")
 
+    # Predictive ROI
+    ap.add_argument("--roi", type=int, default=1, help="enable predictive ROI (0/1)")
+    ap.add_argument("--roi-margin", type=float, default=0.035, help="base ROI margin")
+    ap.add_argument("--roi-vel-margin", type=float, default=0.25, help="extra margin from speed")
+    ap.add_argument("--roi-vel-scale", type=float, default=1200.0, help="speed scale for extra margin")
+    ap.add_argument("--roi-predict-ms", type=int, default=80, help="predict ahead using palm velocity")
+    ap.add_argument("--roi-fail", type=int, default=5, help="misses before fallback to full frame")
+    ap.add_argument("--roi-min-size", type=int, default=160, help="min ROI size in pixels")
+
     # Tap click (tip speed relative to palm)
     ap.add_argument("--tap-speed", type=float, default=14.0, help="tip speed threshold (px/frame)")
     ap.add_argument("--tap-release", type=float, default=12.0, help="speed to release tap arm")
@@ -61,6 +70,6 @@ def parse_args():
     ap.add_argument("--grab-count", type=int, default=3, help="curled fingers to start grab")
     ap.add_argument("--grab-release-count", type=int, default=1, help="curled fingers to release grab")
     ap.add_argument("--scroll-gain", type=float, default=8.0, help="wheel units per pixel")
-    ap.add_argument("--scroll-deadzone", type=int, default=2, help="min palm delta for scroll")
+    ap.add_argument("--scroll-deadzone", type=int, default=1, help="min palm delta for scroll")
     ap.add_argument("--scroll-max", type=int, default=600, help="max wheel units per frame")
     return ap.parse_args()

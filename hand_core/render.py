@@ -27,3 +27,10 @@ def draw_debug(frame, hand_lms, cam_w, cam_h, debug, tap_click):
         2,
         cv2.LINE_AA,
     )
+
+
+def draw_roi(frame, roi_box):
+    if not roi_box:
+        return
+    x1, y1, x2, y2 = roi_box
+    cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 200, 0), 2)
