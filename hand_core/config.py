@@ -45,7 +45,7 @@ def parse_args():
     ap.add_argument("--presence", type=float, default=0.6, help="min_hand_presence_confidence")
     ap.add_argument("--trk", type=float, default=0.8, help="min_tracking_confidence")
 
-    ap.add_argument("--ema-alpha", type=float, default=0.2)
+    ap.add_argument("--ema-alpha", type=float, default=0.4)
     ap.add_argument("--draw", action="store_true")
 
     # Predictive ROI
@@ -58,7 +58,7 @@ def parse_args():
     ap.add_argument("--roi-min-size", type=int, default=160, help="min ROI size in pixels")
 
     # Tap click (tip speed relative to palm)
-    ap.add_argument("--tap-speed", type=float, default=14.0, help="tip speed threshold (px/frame)")
+    ap.add_argument("--tap-speed", type=float, default=11.0, help="tip speed threshold (px/frame)")
     ap.add_argument("--tap-release", type=float, default=12.0, help="speed to release tap arm")
     ap.add_argument("--palm-speed", type=float, default=6.0, help="max palm speed to allow tap")
     ap.add_argument("--tap-window-ms", type=int, default=200, help="max ms between arm and release")
