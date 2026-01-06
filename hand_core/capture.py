@@ -6,6 +6,11 @@ def open_cap(idx, w, h, fps):
         cap = cv2.VideoCapture(idx)
         if not cap.isOpened():
             return None
+    # On Windows webcams, using MJPG often yields higher FPS at given resolutions
+    try:
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+    except Exception:
+        pass
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, w)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
     cap.set(cv2.CAP_PROP_FPS, fps)

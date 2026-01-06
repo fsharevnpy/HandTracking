@@ -86,18 +86,20 @@ def process_hand(hand_lms, args, cam_w, cam_h, mirror, screen_w, screen_h, state
                 state.tap_armed_ts = None
 
     #####GRAB / SCROLL LOGIC#####
-    mid_scale = ((middle_mcp.x - wrist.x) ** 2 + (middle_mcp.y - wrist.y) ** 2) ** 0.5
-    scale = mid_scale if mid_scale > 1e-6 else 1e-6
+    # Use squared distances to avoid expensive sqrt operations
+    mid_scale_sq = (middle_mcp.x - wrist.x) ** 2 + (middle_mcp.y - wrist.y) ** 2
+    scale_sq = mid_scale_sq if mid_scale_sq > 1e-12 else 1e-12
     index_tip = hand_lms[8]
     other_tips = [hand_lms[12], hand_lms[16], hand_lms[20]]
     curled_other = 0
+    grab_thresh_sq = scale_sq * (args.grab_ratio ** 2)
     for tip_lm in other_tips:
-        dist = ((tip_lm.x - palm_x) ** 2 + (tip_lm.y - palm_y) ** 2) ** 0.5
-        if dist <= scale * args.grab_ratio:
+        dist_sq = (tip_lm.x - palm_x) ** 2 + (tip_lm.y - palm_y) ** 2
+        if dist_sq <= grab_thresh_sq:
             curled_other += 1
 
-    index_dist = ((index_tip.x - palm_x) ** 2 + (index_tip.y - palm_y) ** 2) ** 0.5
-    index_curled = index_dist <= scale * args.grab_index_ratio
+    index_dist_sq = (index_tip.x - palm_x) ** 2 + (index_tip.y - palm_y) ** 2
+    index_curled = index_dist_sq <= scale_sq * (args.grab_index_ratio ** 2)
 
     all_curled = index_curled and curled_other == 3
 

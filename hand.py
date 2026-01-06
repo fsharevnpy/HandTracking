@@ -101,6 +101,8 @@ def main():
     args.screen_w = max(1, int(args.screen_w / screen_scale))
     args.screen_h = max(1, int(args.screen_h / screen_scale))
 
+    # Enable OpenCV optimizations for better performance
+    cv2.setUseOptimized(True)
     cap = capture.open_cap(args.dev, args.width, args.height, args.fps)
     if cap is None:
         sys.exit(f"Can not open camera index {args.dev}")
@@ -115,6 +117,11 @@ def main():
     print("Press q to quit")
 
     sock = net.create_udp_sender()
+    # Connect the UDP socket once to avoid per-send address resolution overhead
+    try:
+        sock.connect((args.send_host, args.send_port))
+    except OSError:
+        pass
 
     options = mediapipe.build_hand_landmarker_options(args)
     state = tracking.TrackerState()
@@ -193,7 +200,7 @@ def main():
                         roi_last_ts = ts
                         roi_miss = 0
 
-                    break  # only 1 left hand
+                    break  # only 1 right hand
             if args.roi and roi_box is not None and not found_hand:
                 roi_miss += 1
                 if roi_miss >= args.roi_fail:
