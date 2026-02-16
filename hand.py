@@ -3,6 +3,7 @@ import sys
 import time
 
 import cv2
+import ctypes
 
 from hand_core import capture, config, mediapipe, net, render, tracking
 
@@ -20,7 +21,6 @@ class SimpleLandmark:
 def clamp(v, lo, hi):
     return lo if v < lo else hi if v > hi else v
 
-
 def remap_landmarks(hand_lms, roi_params, cam_w, cam_h):
     x1, y1, roi_w, roi_h = roi_params
     remapped = []
@@ -30,7 +30,6 @@ def remap_landmarks(hand_lms, roi_params, cam_w, cam_h):
         z = getattr(lm, "z", 0.0)
         remapped.append(SimpleLandmark(x, y, z))
     return remapped
-
 
 def compute_palm_center_px(hand_lms, cam_w, cam_h):
     wrist = hand_lms[0]
@@ -116,6 +115,15 @@ def main():
     print(f"Model: {args.model}")
     print("Press q to quit")
 
+    # Prepare window and set always-on-top
+    window_title = "Hands -> Mouse (Tasks) (press q)"
+    try:
+        cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
+    except Exception:
+        pass
+
+    top_most = bool(not args.no_topmost)
+
     sock = net.create_udp_sender()
     # Connect the UDP socket once to avoid per-send address resolution overhead
     try:
@@ -159,7 +167,6 @@ def main():
             result = landmarker.detect_for_video(mp_image, ts)
 
             target_px = None
-            tap_click = False
             scroll_delta = 0
             debug = None
             found_hand = False
@@ -178,7 +185,7 @@ def main():
                     if roi_params is not None:
                         hand_lms = remap_landmarks(hand_lms, roi_params, cam_w, cam_h)
 
-                    target_px, tap_click, scroll_delta, debug = tracking.process_hand(
+                    target_px, click, scroll_delta, hold_down, debug = tracking.process_hand(
                         hand_lms,
                         args,
                         cam_w,
@@ -191,7 +198,7 @@ def main():
                     )
 
                     if args.draw:
-                        render.draw_debug(frame, hand_lms, cam_w, cam_h, debug, tap_click)
+                        render.draw_debug(frame, hand_lms, cam_w, cam_h, debug, click)
 
                     if args.roi:
                         roi_box, roi_last_center = update_roi_from_landmarks(
@@ -211,10 +218,13 @@ def main():
                 render.draw_roi(frame, roi_box)
 
             if target_px is not None:
-                net.send_cursor(sock, args.send_host, args.send_port, target_px, tap_click, scroll_delta)
+                net.send_cursor(sock, args.send_host, args.send_port, target_px, click, scroll_delta, hold_down)
 
             show = cv2.flip(frame, 1) if args.mirror else frame
-            cv2.imshow("Hands -> Mouse (Tasks) (press q)", show)
+            cv2.imshow(window_title, show)
+            # Periodically pin to foreground to keep window in front
+            if top_most:
+                cv2.setWindowProperty(window_title, cv2.WND_PROP_TOPMOST, 1)
             if (cv2.waitKey(1) & 0xFF) == ord('q'):
                 break
 

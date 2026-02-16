@@ -42,7 +42,7 @@ if __name__ == "__main__":
     w, h = get_screen_size()
     print(f"Listening UDP on {HOST}:{PORT}")
     print(f"Screen: {w}x{h}")
-    print("Expected message: 'x,y,p[,s]' (e.g. 960,820,1,120). Ctrl+C to stop.")
+    print("Expected message: 'x,y,p[,s][,hold]' (e.g. 960,820,1,120,0). Ctrl+C to stop.")
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((HOST, PORT))
@@ -52,6 +52,7 @@ if __name__ == "__main__":
     alpha = 0.35
 
     prev_p = 0
+    prev_hold = 0
     cooldown_ms = 20
     double_click_ms = 300
     last_click = 0.0
@@ -74,8 +75,9 @@ if __name__ == "__main__":
             try:
                 x = int(float(parts[0]))
                 y = int(float(parts[1]))
-                p = int(float(parts[2]))  # 0/1
+                p = int(float(parts[2]))  # 0/1 tap
                 scroll = int(float(parts[3])) if len(parts) > 3 else 0
+                hold = int(float(parts[4])) if len(parts) > 4 else 0
             except ValueError:
                 continue
 
@@ -88,21 +90,34 @@ if __name__ == "__main__":
             scroll_wheel(scroll)
 
             now = time.monotonic()
-            if p == 1 and prev_p == 0:
-                if pending_click_time is not None and (now - pending_click_time) * 1000.0 <= double_click_ms:
+
+            # Left button hold: on rising edge press down; on falling edge release
+            if hold and not prev_hold:
+                user32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+            elif not hold and prev_hold:
+                user32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+            prev_hold = 1 if hold else 0
+
+            # Tap click only when not in hold mode
+            if not hold:
+                if p == 1 and prev_p == 0:
+                    if pending_click_time is not None and (now - pending_click_time) * 1000.0 <= double_click_ms:
+                        if (now - last_click) * 1000.0 >= cooldown_ms:
+                            double_click()
+                            last_click = now
+                        pending_click_time = None
+                    else:
+                        pending_click_time = now
+
+                if pending_click_time is not None and (now - pending_click_time) * 1000.0 > double_click_ms:
                     if (now - last_click) * 1000.0 >= cooldown_ms:
-                        double_click()
+                        left_click()
                         last_click = now
                     pending_click_time = None
-                else:
-                    pending_click_time = now
-
-            if pending_click_time is not None and (now - pending_click_time) * 1000.0 > double_click_ms:
-                if (now - last_click) * 1000.0 >= cooldown_ms:
-                    left_click()
-                    last_click = now
+            else:
+                # Clear pending tap when holding to avoid accidental clicks on release
                 pending_click_time = None
-                
+
             prev_p = 1 if p else 0
 
             time.sleep(0.001)

@@ -45,8 +45,9 @@ def parse_args():
     ap.add_argument("--presence", type=float, default=0.6, help="min_hand_presence_confidence")
     ap.add_argument("--trk", type=float, default=0.8, help="min_tracking_confidence")
 
-    ap.add_argument("--ema-alpha", type=float, default=0.4)
+    ap.add_argument("--ema-alpha", type=float, default=0.25)
     ap.add_argument("--draw", action="store_true")
+    ap.add_argument("--no-topmost", action="store_true",help="Disable always-on-top preview window.")
 
     # Predictive ROI
     ap.add_argument("--roi", type=int, default=1, help="enable predictive ROI (0/1)")
@@ -57,12 +58,12 @@ def parse_args():
     ap.add_argument("--roi-fail", type=int, default=5, help="misses before fallback to full frame")
     ap.add_argument("--roi-min-size", type=int, default=160, help="min ROI size in pixels")
 
-    # Tap click (tip speed relative to palm)
-    ap.add_argument("--tap-speed", type=float, default=11.0, help="tip speed threshold (px/frame)")
-    ap.add_argument("--tap-release", type=float, default=12.0, help="speed to release tap arm")
-    ap.add_argument("--palm-speed", type=float, default=6.0, help="max palm speed to allow tap")
-    ap.add_argument("--tap-window-ms", type=int, default=200, help="max ms between arm and release")
-    ap.add_argument("--tap-cooldown-ms", type=int, default=20, help="cooldown after click")
+    # Gestures and mouse behavior
+    ap.add_argument("--fist-hold",action="store_true",default=False,help="Hold left mouse while fist (grab) is active.")
+    ap.add_argument("--pinch-ratio",type=float,default=0.3,help="Thumb-index close threshold relative to hand scale (smaller=stricter).")
+    ap.add_argument("--pinch-open-ratio",type=float,default=0.45,help="Thumb-index open threshold for hysteresis.")
+    ap.add_argument("--pinch-min-hold-ms",type=int,default=5,help="Minimum closed duration before click.")
+    ap.add_argument("--pinch-cooldown-ms",type=int,default=20,help="Cooldown after click to avoid repeats.")
 
     # Grab-and-drag scrolling
     ap.add_argument("--grab-ratio", type=float, default=0.55, help="fingertip distance ratio to palm")

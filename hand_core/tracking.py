@@ -1,18 +1,17 @@
 from collections import deque
-import numpy as np
 from .config import INDEX_PIP_ID, INDEX_TIP_ID
 
 class TrackerState:
     def __init__(self):
         self.ema_x = None
         self.ema_y = None
-        self.prev_rel_px = None
         self.prev_palm_px = None
-        self.speed_hist = deque(maxlen=60)
-        self.tap_armed_ts = None
-        self.tap_cooldown_until = 0
         self.grab_active = False
         self.grab_last_palm_y = None
+        # Pinch-click state (thumb tip touching index tip)
+        self.pinch_active = False
+        self.pinch_cooldown_until = 0
+        self.pinch_armed_ts = None
 
 
 def clamp(v, lo, hi):
@@ -43,9 +42,10 @@ def process_hand(hand_lms, args, cam_w, cam_h, mirror, screen_w, screen_h, state
 
     target_px = (int(state.ema_x), int(state.ema_y))
 
-    #####TAP LOGIC#####
-    tap_click = False
+    #####PINCH (THUMB-INDEX) CLICK LOGIC#####
+    click = False
     scroll_delta = 0
+    hold_down = False
 
     wrist = hand_lms[0]
     index_mcp = hand_lms[5]
@@ -57,15 +57,7 @@ def process_hand(hand_lms, args, cam_w, cam_h, mirror, screen_w, screen_h, state
     palm_y = (wrist.y + index_mcp.y + middle_mcp.y + ring_mcp.y + pinky_mcp.y) / 5.0
 
     palm_px = (int(palm_x * cam_w), int(palm_y * cam_h))
-    tip_px = (int(tip.x * cam_w), int(tip.y * cam_h))
-    rel_px = (tip_px[0] - palm_px[0], tip_px[1] - palm_px[1])
-
-    speed = 0.0
-    if state.prev_rel_px is not None:
-        dx = rel_px[0] - state.prev_rel_px[0]
-        dy = rel_px[1] - state.prev_rel_px[1]
-        speed = float((dx * dx + dy * dy) ** 0.5)
-        state.speed_hist.append(speed)
+    # tip-relative speed no longer used (tap logic removed)
 
     palm_speed = 0.0
     if state.prev_palm_px is not None:
@@ -73,17 +65,44 @@ def process_hand(hand_lms, args, cam_w, cam_h, mirror, screen_w, screen_h, state
         dyp = palm_px[1] - state.prev_palm_px[1]
         palm_speed = float((dxp * dxp + dyp * dyp) ** 0.5)
 
-    if ts_ms >= state.tap_cooldown_until:
-        if state.tap_armed_ts is None:
-            if speed >= args.tap_speed and palm_speed <= args.palm_speed:
-                state.tap_armed_ts = ts_ms
+    # Compute thumb-index pinch based on scaled distance
+    thumb_tip = hand_lms[4]
+    index_tip = hand_lms[8]
+    # Use wrist-middle MCP distance as scale
+    mid_scale_sq = (middle_mcp.x - wrist.x) ** 2 + (middle_mcp.y - wrist.y) ** 2
+    scale_sq = mid_scale_sq if mid_scale_sq > 1e-12 else 1e-12
+    # Hysteresis: separate close/open thresholds to reduce false positives
+    pinch_ratio_close = float(getattr(args, "pinch_ratio", 0.3))
+    pinch_ratio_open = float(getattr(args, "pinch_open_ratio", 0.45))
+    pinch_close_thresh_sq = scale_sq * (pinch_ratio_close ** 2)
+    pinch_open_thresh_sq = scale_sq * (pinch_ratio_open ** 2)
+    pinch_dist_sq = (thumb_tip.x - index_tip.x) ** 2 + (thumb_tip.y - index_tip.y) ** 2
+    pinch_closed = pinch_dist_sq <= pinch_close_thresh_sq
+    pinch_open = pinch_dist_sq >= pinch_open_thresh_sq
+
+    pinch_cooldown_ms = int(getattr(args, "pinch_cooldown_ms", 250))
+    pinch_min_hold_ms = int(getattr(args, "pinch_min_hold_ms", 25))
+    pinch_palm_speed = float(getattr(args, "pinch_palm_speed", getattr(args, "palm_speed", 12.0)))
+
+    if not state.pinch_active:
+        if pinch_closed:
+            if state.pinch_armed_ts is None:
+                state.pinch_armed_ts = ts_ms
+            else:
+                held_long_enough = (ts_ms - state.pinch_armed_ts) >= pinch_min_hold_ms
+                palm_stable = palm_speed <= pinch_palm_speed
+                if held_long_enough and palm_stable and ts_ms >= state.pinch_cooldown_until:
+                    click = True
+                    state.pinch_active = True
+                    state.pinch_cooldown_until = ts_ms + pinch_cooldown_ms
         else:
-            if speed <= args.tap_release:
-                tap_click = True
-                state.tap_armed_ts = None
-                state.tap_cooldown_until = ts_ms + args.tap_cooldown_ms
-            elif ts_ms - state.tap_armed_ts > args.tap_window_ms:
-                state.tap_armed_ts = None
+            state.pinch_armed_ts = None
+    else:
+        if pinch_open:
+            state.pinch_active = False
+            state.pinch_armed_ts = None
+
+    # Tap logic removed: pinch is the sole trigger for clicks.
 
     #####GRAB / SCROLL LOGIC#####
     # Use squared distances to avoid expensive sqrt operations
@@ -119,7 +138,9 @@ def process_hand(hand_lms, args, cam_w, cam_h, mirror, screen_w, screen_h, state
             scroll_delta = clamp(scroll_delta, -args.scroll_max, args.scroll_max)
         state.grab_last_palm_y = palm_px[1]
 
-    state.prev_rel_px = rel_px
+    if bool(getattr(args, "fist_hold", False)):
+        hold_down = state.grab_active
+
     state.prev_palm_px = palm_px
 
     debug = {
@@ -131,5 +152,7 @@ def process_hand(hand_lms, args, cam_w, cam_h, mirror, screen_w, screen_h, state
         "pip": pip,
         "grab": state.grab_active,
         "scroll": scroll_delta,
+        "pinch": state.pinch_active,
+        "pinch_dist_sq": pinch_dist_sq,
     }
-    return target_px, tap_click, scroll_delta, debug
+    return target_px, click, scroll_delta, hold_down, debug
